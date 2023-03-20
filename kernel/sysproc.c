@@ -89,3 +89,10 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+//task2 - memsize()
+uint64
+sys_memsize(void)
+{
+  return myproc()->sz;
+}
+
