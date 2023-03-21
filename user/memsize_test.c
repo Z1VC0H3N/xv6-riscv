@@ -12,5 +12,5 @@ int main(int argc, char *argv[])
     free(addr);
     int afterFree = memsize();
     printf("after free  , size = %d \n", afterFree);
-    exit(0);
+    exit(0, "");
 }
