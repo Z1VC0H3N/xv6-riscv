@@ -2,10 +2,11 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 
+// exit(x)-> exit(x,"")
+// wait(x)->wait(0,0)
+// sh.c
+
 int main(int argc, char *argv[])
 {
-    char *message = "Hello World xv6";
-    write(1, message, 16);
-    write(1, "\n", 1);
-    exit(0, "");
+    exit(0, "Goodbye World XV6\n");
 }
