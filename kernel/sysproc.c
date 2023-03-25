@@ -89,7 +89,6 @@ uint64
 sys_uptime(void)
 {
   uint xticks;
-
   acquire(&tickslock);
   xticks = ticks;
   release(&tickslock);
@@ -100,4 +99,12 @@ uint64
 sys_memsize(void)
 {
   return myproc()->sz;
+}
+// task5
+uint64 sys_set_ps_priority(void)
+{
+  int priority;
+  argint(0, &priority);
+  myproc()->ps_priority = priority;
+  return -1;
 }

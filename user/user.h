@@ -24,6 +24,8 @@ int sleep(int);
 int uptime(void);
 // task2
 int memsize(void);
+// task5
+void set_ps_priority(int);
 
 // ulib.c
 int stat(const char *, struct stat *);

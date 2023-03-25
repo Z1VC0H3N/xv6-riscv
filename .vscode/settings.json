@@ -17,6 +17,9 @@
         "new": "c",
         "*.tcc": "c",
         "cstdint": "c",
-        "typeinfo": "c"
+        "typeinfo": "c",
+        "proc.h": "c",
+        "spinlock.h": "c",
+        "param.h": "c"
     },
 }

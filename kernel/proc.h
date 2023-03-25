@@ -118,4 +118,9 @@ struct proc
   char name[16];               // Process name (debugging)
   // task3
   char exit_msg[32]; // msg to print apon exit
+  // task5
+  long long accumulator; // A value that evaluates the priority of the process
+  int ps_priority;       // a value witch determain the priority of a procces
+                         // initiate - 5 , top - 1 , low - 10
+                         // thus, lower values represent higher priorities.
 };

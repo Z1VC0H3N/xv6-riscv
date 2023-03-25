@@ -253,7 +253,9 @@ void userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-
+  p->ps_priority = 5;
+  p->accumulator = min_acc();
+  printf("stack hear? 258\n");
   release(&p->lock);
 }
 
@@ -327,6 +329,10 @@ int fork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  // task5
+  np->ps_priority = 5;
+  np->accumulator = min_acc();
+  printf("stack hear? fork 335\n");
   release(&np->lock);
 
   return pid;
@@ -417,7 +423,7 @@ int wait(uint64 addr, uint64 addr2)
         {
           // Found one.
           pid = pp->pid;
-          if (addr != 0 && (copyout(p->pagetable, addr, (char *)&pp->xstate, sizeof(pp->xstate)) < 0 && copyout(p->pagetable, addr2, (char *)&pp->exit_msg, sizeof(pp->exit_msg)) < 0))
+          if (addr != 0 && (copyout(p->pagetable, addr, (char *)&pp->xstate, sizeof(pp->xstate)) < 0))
           {
             release(&pp->lock);
             release(&wait_lock);
@@ -462,26 +468,45 @@ void scheduler(void)
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
 
+    struct proc *min_p = 0;
+    // task 5
+    long long LONG_MAX = 2147483647;
+    long long min_accumulator = LONG_MAX;
     for (p = proc; p < &proc[NPROC]; p++)
     {
-      acquire(&p->lock);
-      if (p->state == RUNNABLE)
+      if (p->state == RUNNABLE && p->accumulator < min_accumulator)
       {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
+        min_accumulator = p->accumulator;
+        min_p = p;
+      }
+    }
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
+    // if there is a runnable proccess
+    if (min_p != 0)
+    {
+      // find the first process to have the min acc if you have many.
+      struct proc *to_choose = min_p;
+      for (p = proc; p < &proc[NPROC]; p++)
+      {
+        if (p != to_choose && p->state == RUNNABLE && p->accumulator == min_accumulator)
+        {
+          to_choose = p;
+          break;
+        }
+      }
+      acquire(&to_choose->lock);
+      if (to_choose->state == RUNNABLE)
+      {
+        to_choose->state = RUNNING;
+        c->proc = to_choose;
+        swtch(&c->context, &to_choose->context);
         c->proc = 0;
       }
-      release(&p->lock);
+      release(&to_choose->lock);
     }
   }
 }
+// task5
 
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
@@ -515,6 +540,8 @@ void yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
   p->state = RUNNABLE;
+  // task5 - add the process’ priority to its accumulator field - the procces exhausts time, but remains runnable
+  p->accumulator = p->accumulator + p->ps_priority;
   sched();
   release(&p->lock);
 }
@@ -583,16 +610,19 @@ void wakeup(void *chan)
       acquire(&p->lock);
       if (p->state == SLEEPING && p->chan == chan)
       {
+        // task5
+        p->accumulator = min_acc();
+        printf("stack hear? 615 wakeup\n");
         p->state = RUNNABLE;
       }
       release(&p->lock);
     }
   }
 }
-
-// Kill the process with the given pid.
-// The victim won't exit until it tries to return
-// to user space (see usertrap() in trap.c).
+// TODO :  check if also hear in kill we need to update p->accumulator
+//  Kill the process with the given pid.
+//  The victim won't exit until it tries to return
+//  to user space (see usertrap() in trap.c).
 int kill(int pid)
 {
   struct proc *p;
@@ -694,4 +724,33 @@ void procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+long long min_acc()
+{
+  struct proc *p;
+  // task 5
+  long long LONG_MAX = 2147483647;
+  long long min_acc = LONG_MAX;
+  int runnable = 0;
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    if (p->state == RUNNABLE || p->state == RUNNING)
+    {
+      if (p->state == RUNNABLE)
+      {
+        runnable++;
+      }
+      if (p->accumulator < min_acc)
+      {
+        min_acc = p->accumulator;
+      }
+    }
+  }
+  printf("find min acc : %d\n", min_acc);
+  if (runnable == 1)
+  {
+    return 0;
+  }
+  return min_acc;
 }

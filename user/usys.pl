@@ -37,3 +37,5 @@ entry("sleep");
 entry("uptime");
 #task2
 entry("memsize");
+#task5
+entry("set_ps_priority");
