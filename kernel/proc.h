@@ -118,4 +118,7 @@ struct proc
   char name[16];               // Process name (debugging)
   // task3
   char exit_msg[32]; // msg to print apon exit
+  // task5
+  int ps_priority;
+  long long accumulator;
 };
