@@ -25,6 +25,8 @@ extern char trampoline[]; // trampoline.S
 // memory model when using p->parent.
 // must be acquired before any p->lock.
 struct spinlock wait_lock;
+// task7
+int sched_policy = 0;
 
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
@@ -258,6 +260,9 @@ void userinit(void)
   p->ps_priority = 5;
   p->accumulator = min_acc();
 
+  // task6
+  // p->decay_factor = 100;
+
   release(&p->lock);
 }
 
@@ -334,6 +339,10 @@ int fork(void)
   // task5
   np->ps_priority = 5;
   np->accumulator = min_acc();
+  // task6
+  // np->decay_factor = 100;
+  // Calling fork() will copy the priority of the parent process to the child process
+  np->cfs_priority = p->cfs_priority;
   release(&np->lock);
 
   return pid;
@@ -424,7 +433,7 @@ int wait(uint64 addr, uint64 addr2)
         {
           // Found one.
           pid = pp->pid;
-          if (addr != 0 && (copyout(p->pagetable, addr, (char *)&pp->xstate, sizeof(pp->xstate)) < 0 && copyout(p->pagetable, addr2, (char *)&pp->exit_msg, sizeof(pp->exit_msg)) < 0))
+          if (addr != 0 && (copyout(p->pagetable, addr, (char *)&pp->xstate, sizeof(pp->xstate)) < 0))
           {
             release(&pp->lock);
             release(&wait_lock);
@@ -458,7 +467,8 @@ int wait(uint64 addr, uint64 addr2)
 //  - swtch to start running that process.
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
-void scheduler(void)
+// task5
+void schedulerMinAcc(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
@@ -506,7 +516,162 @@ void scheduler(void)
     }
   }
 }
-// task5
+void regScheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+  // regular round robin:
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    acquire(&p->lock);
+    if (p->state == RUNNABLE)
+    {
+      // Switch to chosen process.  It is the process's job
+      // to release its lock and then reacquire it
+      // before jumping back to us.
+      p->state = RUNNING;
+      c->proc = p;
+      swtch(&c->context, &p->context);
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    }
+    release(&p->lock);
+  }
+}
+void minAccScheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+  struct proc *min_p = 0;
+  long long min_accumulator = 2147483647;
+  // find min acc
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    if (p->state == RUNNABLE && p->accumulator < min_accumulator)
+    {
+      min_accumulator = p->accumulator;
+      min_p = p;
+    }
+  }
+
+  // if there is a runnable proccess
+  if (min_p != 0)
+  {
+    // find the first process to have the min acc if you have many.
+    struct proc *to_choose = min_p;
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      if (p != to_choose && p->state == RUNNABLE && p->accumulator == min_accumulator)
+      {
+        to_choose = p;
+        break;
+      }
+    }
+    acquire(&to_choose->lock);
+    if (to_choose->state == RUNNABLE)
+    {
+      to_choose->state = RUNNING;
+      c->proc = to_choose;
+      swtch(&c->context, &to_choose->context);
+      c->proc = 0;
+    }
+    release(&to_choose->lock);
+  }
+}
+void minVrunScheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+  struct proc *min_vruntime = 0;
+  int min_v = 1000000;
+  int decay_factor = 0;
+  // find min vruntime
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    switch (p->cfs_priority)
+    {
+    case 0:
+      decay_factor = 75;
+      break;
+    case 1:
+      decay_factor = 100;
+      break;
+    case 2:
+      decay_factor = 125;
+      break;
+    }
+    int tmp = decay_factor * (p->rtime / (p->rtime + p->retime + p->stime));
+    if (p->state == RUNNABLE && tmp < min_v)
+    {
+      min_vruntime = p;
+      min_v = tmp;
+    }
+  }
+
+  // if there is a runnable proccess
+  if (min_vruntime != 0)
+  {
+    // find the first process to have the min acc if you have many.
+    struct proc *to_choose = min_vruntime;
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      switch (p->cfs_priority)
+      {
+      case 0:
+        decay_factor = 75;
+        break;
+      case 1:
+        decay_factor = 100;
+        break;
+      case 2:
+        decay_factor = 125;
+        break;
+      }
+      int runTime = decay_factor * (p->rtime / (p->rtime + p->retime + p->stime));
+      if (p != to_choose && p->state == RUNNABLE && runTime == min_v)
+      {
+        to_choose = p;
+        break;
+      }
+    }
+    acquire(&to_choose->lock);
+    if (to_choose->state == RUNNABLE)
+    {
+      to_choose->state = RUNNING;
+      c->proc = to_choose;
+      swtch(&c->context, &to_choose->context);
+      c->proc = 0;
+    }
+    release(&to_choose->lock);
+  }
+}
+// task6
+void scheduler(void)
+{
+  struct cpu *c = mycpu();
+  c->proc = 0;
+  for (;;)
+  {
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+    switch (sched_policy)
+    {
+    case 0:
+      regScheduler();
+      break;
+    case 1:
+      minAccScheduler();
+      break;
+    case 2:
+      minVrunScheduler();
+      break;
+    default:
+      break;
+    }
+  }
+}
 
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
@@ -540,7 +705,6 @@ void yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
   p->state = RUNNABLE;
-  // p->accumulator = p->accumulator + p->ps_priority;
   sched();
   release(&p->lock);
 }
@@ -611,6 +775,7 @@ void wakeup(void *chan)
       {
         // task5
         p->accumulator = min_acc();
+        // task5
         p->state = RUNNABLE;
       }
       release(&p->lock);
@@ -723,6 +888,7 @@ void procdump(void)
     printf("\n");
   }
 }
+// task 5 - finding min accumulator
 long long min_acc()
 {
   long long MIN_LONG = 10000;
@@ -747,4 +913,85 @@ long long min_acc()
     return 0;
   }
   return MIN_LONG;
+}
+
+// struct proc *find_min_vruntime()
+// {
+//   int min_vruntime = 100000;
+//   struct proc *p;
+//   struct proc *to_choose;
+//   for (p = proc; p < &proc[NPROC]; p++)
+//   {
+//     acquire(&p->lock);
+//     int min = p->decay_factor * (p->rtime / (p->rtime + p->retime + p->stime));
+//     if (min < min_vruntime)
+//     {
+//       min_vruntime = min;
+//       to_choose = p;
+//     }
+//     release(&p->lock);
+//   }
+//   return to_choose;
+// }
+// task6
+int get_cfs_stats(int pid, uint64 addr0, uint64 addr1, uint64 addr2, uint64 addr3)
+{
+  struct proc *p;
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    if (p->pid == pid && p->state == RUNNING)
+    {
+      acquire(&p->lock);
+      copyout(p->pagetable, addr0, (char *)&p->cfs_priority, sizeof(p->cfs_priority));
+      copyout(p->pagetable, addr1, (char *)&p->rtime, sizeof(p->rtime));
+      copyout(p->pagetable, addr2, (char *)&p->stime, sizeof(p->stime));
+      copyout(p->pagetable, addr3, (char *)&p->retime, sizeof(p->retime));
+      release(&p->lock);
+      break;
+    }
+  }
+  return 0;
+}
+// task6
+int set_cfs_priority(int priority)
+{
+  if (priority == 0 || priority == 1 || priority == 2)
+  {
+    myproc()->cfs_priority = priority;
+    return 0;
+  }
+  return -1;
+}
+// task6
+void update_fields()
+{
+  struct proc *p;
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    acquire(&p->lock);
+    switch (p->state)
+    {
+    case RUNNABLE:
+      p->retime++;
+      break;
+    case RUNNING:
+      p->rtime++;
+      break;
+    case SLEEPING:
+      p->stime++;
+      break;
+    default:
+      break;
+    }
+    release(&p->lock);
+  }
+}
+int set_policy(int policy)
+{
+  if (policy == 0 || policy == 1 || policy == 2)
+  {
+    sched_policy = policy;
+    return 0;
+  }
+  return -1;
 }

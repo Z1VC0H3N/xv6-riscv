@@ -101,3 +101,41 @@ sys_memsize(void)
 {
   return myproc()->sz;
 }
+
+// task5
+uint64 sys_set_ps_priority(void)
+{
+  int ps_priority;
+  argint(0, &ps_priority);
+  myproc()->ps_priority = ps_priority;
+  return 0;
+}
+
+// task6
+uint64 sys_set_cfs_priority(void)
+{
+  int cfs_priority;
+  argint(0, &cfs_priority);
+  return set_cfs_priority(cfs_priority);
+}
+uint64 sys_get_cfs_stats(void)
+{
+  int pid;
+  uint64 addr0; // address0 to copy to;
+  uint64 addr1; // address1 to copy to;
+  uint64 addr2; // address2 to copy to;
+  uint64 addr3; // address3 to copy to;
+  argint(0, &pid);
+  argaddr(1, &addr0);
+  argaddr(2, &addr1);
+  argaddr(3, &addr2);
+  argaddr(4, &addr3);
+  return get_cfs_stats(pid, addr0, addr1, addr2, addr3);
+}
+
+uint64 sys_set_policy(void)
+{
+  int policy;
+  argint(0, &policy);
+  return set_policy(policy);
+}

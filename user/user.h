@@ -24,6 +24,17 @@ int sleep(int);
 int uptime(void);
 // task2
 int memsize(void);
+// task5
+void set_ps_priority(int);
+// task6
+int set_cfs_priority(int);
+int get_cfs_stats(int, int *, int *, int *, int *);
+void update_fields(void);
+// task7
+int set_policy(int);
+void regScheduler(void);
+void minAccScheduler(void);
+void minVrunScheduler(void);
 
 // ulib.c
 int stat(const char *, struct stat *);

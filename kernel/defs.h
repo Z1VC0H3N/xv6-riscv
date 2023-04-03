@@ -106,7 +106,19 @@ void yield(void);
 int either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void procdump(void);
+// task5
 long long min_acc(void);
+int memsize(void);
+void set_ps_priority(int);
+// task6
+int set_cfs_priority(int);
+int get_cfs_stats(int, uint64, uint64, uint64, uint64);
+void update_fields(void);
+// task7
+int set_policy(int);
+void regScheduler(void);
+void minAccScheduler(void);
+void minVrunScheduler(void);
 
 // swtch.S
 void swtch(struct context *, struct context *);
