@@ -119,6 +119,15 @@ struct proc
   // task3
   char exit_msg[32]; // msg to print apon exit
   // task5
-  int ps_priority;
-  long long accumulator;
+  int ps_priority;       // priority of procces -> High priority = 0 => decay factor = 75
+                         //                        Normal priority = 1 => decay factor = 100
+                         //                        Low priority = 2 => decay factor = 125.
+  long long accumulator; // accumuletor for procces priority
+  // task6
+  int cfs_priority; // can be 0 or 1 or 2  -> High priority = 0 => decay factor = 75
+                    //                        Normal priority = 1 => decay factor = 100
+                    //                        Low priority = 2 => decay factor = 125.
+  int rtime;        // runtime
+  int stime;        // sleeping time
+  int retime;       // runnable time
 };

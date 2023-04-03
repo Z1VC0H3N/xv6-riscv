@@ -37,3 +37,10 @@ entry("sleep");
 entry("uptime");
 #task2
 entry("memsize");
+#task5
+entry("set_ps_priority");
+#task6
+entry("set_cfs_priority");
+entry("get_cfs_stats");
+#task7
+entry("set_policy");
